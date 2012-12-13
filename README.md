@@ -1,4 +1,4 @@
-sqlfu-caveman
+Sqlfu.Caveman
 =============
 
-Repositories implementation for CavemanTools Infrastructure
+Repositories implementation for CavemanTools LocalMessageBus and CommandsQueue
