@@ -17,6 +17,7 @@ namespace Tests
         public string SagaCorrelationId { get; set; }
         public Guid Id { get; set; }
         public bool IsCompleted { get; set; }
+        public int Value { get; set; }
     }
     
     public class GenericSagaRepositoryTests:IDisposable
@@ -66,6 +67,42 @@ namespace Tests
         {
             var saga = _repo.GetSaga("45", typeof(MySagaState));
             Assert.Equal("45",saga.SagaCorrelationId);
+        }
+
+        [Fact]
+        public void if_saga_exists_update_it()
+        {
+            var saga = _repo.GetSaga("25", typeof (MySagaState)) as MySagaState;
+            _repo.Save(saga);
+            saga.Value = 56;
+            _repo.Save(saga);
+            var saga1 = _repo.GetSaga("25", typeof (MySagaState)) as MySagaState;
+            Assert.Equal(56,saga1.Value);            
+        }
+
+        [Fact]
+        public void count_sagas()
+        {
+            var saga = _repo.GetSaga("25", typeof(MySagaState)) as MySagaState;
+            _repo.Save(saga);
+            saga.IsCompleted = true;
+            _repo.Save(saga);
+            Assert.Equal(1,_repo.CountAllSagas());
+            Assert.Equal(0,_repo.CountAllSagas(onlyActive:true));
+        }
+
+        [Fact]
+        public void only_completed_are_cleanedup()
+        {
+            var saga = _repo.GetSaga("25", typeof(MySagaState)) as MySagaState;
+            _repo.Save(saga);
+            _repo.CleanUp(DateTime.UtcNow);
+            Assert.Equal(1,_repo.CountAllSagas());
+
+            saga.IsCompleted = true;
+            _repo.Save(saga);
+            _repo.CleanUp(DateTime.UtcNow);
+            Assert.Equal(0,_repo.CountAllSagas());
         }
 
         protected void Write(string format, params object[] param)

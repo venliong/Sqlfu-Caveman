@@ -57,5 +57,14 @@ namespace SqlFu.Caveman
             var res=_db.PagedQuery<byte[]>(0,maxItems,@"select Body from " + TableName + " where CompletedAt is null and ShouldRunAt<=@0", date);
              return res.Items.Select(d => (QueueItem) d.Deserialize());
         }
+
+        /// <summary>
+        /// Delete all completed commands before date
+        /// </summary>
+        /// <param name="before"></param>
+        public void Cleanup(DateTime before)
+        {
+            _db.ExecuteCommand("delete from " + TableName + " where CompletedAt<@0", before);
+        }
     }
 }

@@ -3,6 +3,7 @@ using System.Data;
 using CavemanTools.Infrastructure;
 using CavemanTools.Infrastructure.MessagesBus.Saga;
 using SqlFu.DDL;
+using System.Reflection;
 
 namespace SqlFu.Caveman.MessageBus
 {
@@ -25,6 +26,7 @@ namespace SqlFu.Caveman.MessageBus
                   .Add("Body", DbType.Binary, isNullable: false)
                   .Add("CorrelationId", DbType.String, "250", false)
                   .Add("SagaType",DbType.String,"250",false)
+                  .Add("CompletedAt",DbType.DateTime)
                  ;
              store.Indexes.AddIndexOn("CorrelationId,SagaType",true);
              store.ExecuteDDL();
@@ -45,8 +47,16 @@ namespace SqlFu.Caveman.MessageBus
         public void Save(ISagaState state)
         {
             if (state.SagaCorrelationId.IsNullOrEmpty()) throw new InvalidOperationException("SagaCorrelationId must have a value");
-
-            _db.Insert(TableName,new {Id = state.Id, Body = state.Serialize(),CorrelationId=state.SagaCorrelationId,SagaType=state.GetType().AssemblyQualifiedName},false);
+            var oldExists = _db.GetValue<bool>("select count(id) from " + TableName + " where Id=@0", state.Id);
+            if (!oldExists)
+            {
+                _db.Insert(TableName,new {Id = state.Id, Body = state.Serialize(),CorrelationId=state.SagaCorrelationId,SagaType=state.GetType().GetFullTypeName()},false);
+            }
+            else
+            {
+                DateTime? completedAt = state.IsCompleted ? DateTime.UtcNow : new DateTime?();
+                _db.Update(TableName, new {state.Id, Body = state.Serialize(), CompletedAt = completedAt});
+            }
         }
 
         public ISagaState GetSaga(string correlationId, Type sagaType)
@@ -54,7 +64,7 @@ namespace SqlFu.Caveman.MessageBus
             correlationId.MustNotBeEmpty();
             var data =
                 _db.FirstOrDefault<byte[]>(@"select Body from " + TableName + " where CorrelationId=@0 and SagaType=@1",
-                                            correlationId, sagaType.AssemblyQualifiedName);
+                                            correlationId, sagaType.GetFullTypeName());
             ISagaState result;
             if (data == null)
             {
@@ -68,5 +78,23 @@ namespace SqlFu.Caveman.MessageBus
             }
             return result;
         }
+
+        public void CleanUp(DateTime before)
+        {
+            _db.ExecuteCommand("delete from " + TableName + " where CompletedAt<@0", before);
+        }
+
+        public long CountAllSagas(bool onlyActive=false)
+        {
+            var sql = "select count(*) from " + TableName;
+            if (onlyActive)
+            {
+                sql = sql + " where CompletedAt is null";
+            }
+            return _db.GetValue<long>(sql);
+        }
+
+        
     }
+
 }
