@@ -28,6 +28,7 @@ namespace Tests
         public GenericSagaRepositoryTests()
         {
             _repo = new GenericSagaSqlRepository(Setup.GetDb(),ActivatorContainer.Instance);
+            _repo.EnsureStorage();
         }
 
         [Fact]
@@ -115,7 +116,7 @@ namespace Tests
         /// </summary>
         public void Dispose()
         {
-            _repo.DestroyStorage();
+            _repo.DestroyStorage();            
         }
     }
 }

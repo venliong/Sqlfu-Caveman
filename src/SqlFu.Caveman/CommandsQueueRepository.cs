@@ -4,18 +4,43 @@ using System.Data;
 using System.Linq;
 using CavemanTools.Infrastructure;
 using SqlFu.DDL;
+using SqlFu.Migrations;
 
 namespace SqlFu.Caveman
 {
+    [Migration("1.0.0",SchemaName = CommandsQueueRepository.SchemaName)]
+    public class CommandsQueueSetup:AbstractMigrationTask
+    {
+        internal const string TableName = "CavemanCommandsQueue";
+        /// <summary>
+        /// Task is executed automatically in a transaction
+        /// </summary>
+        /// <param name="db"/>
+        public override void Execute(IAccessDb db)
+        {
+            var table = db.DatabaseTools.GetCreateTableBuilder(TableName, IfTableExists.DropIt);
+            table.Columns
+                .Add("Id", DbType.Guid, isNullable: false).AsPrimaryKey()
+                .Add("Body", DbType.Binary, isNullable: false)
+                .Add("QueuedAt", DbType.DateTime, isNullable: false)
+                .Add("ShouldRunAt", DbType.DateTime, isNullable: false)
+                .Add("CompletedAt", DbType.DateTime)
+                .Add("Failures",DbType.Int16,isNullable:false,defaultValue:"0")
+                ;
+            table.ExecuteDDL();
+        }
+    }
+    
     public class CommandsQueueRepository:AbstractCavemanRepository,ISaveQueueState
     {
-        public CommandsQueueRepository(IAccessDb db) : base(db)
+        public const string SchemaName = "SqlFuCavemanQueueStorage";
+        public CommandsQueueRepository(Func<IAccessDb> db) : base(db)
         {
         }
 
         protected override string TableName
         {
-            get { return "CavemanCommandsQueue"; }
+            get { return CommandsQueueSetup.TableName; }
         }
 
         protected override string StorageName
@@ -23,27 +48,36 @@ namespace SqlFu.Caveman
             get { return "CommandsQueueRepository"; }
         }
 
-        protected override void InitStorage()
+       
+
+        protected override string MigrationSchemaName
         {
-            var table = _db.DatabaseTools.GetCreateTableBuilder(TableName, IfTableExists.DropIt);
-            table.Columns
-                .Add("Id", DbType.Guid, isNullable: false).AsPrimaryKey()
-                .Add("Body",DbType.Binary,isNullable:false)
-                .Add("ShouldRunAt",DbType.DateTime,isNullable:false)
-                .Add("CompletedAt",DbType.DateTime)
-                ;
-            table.ExecuteDDL();
+            get { return SchemaName; }
         }
 
         public void Save(QueueItem item)
         {
             item.MustNotBeNull();
-            _db.Insert(TableName, new {Id = item.Id, Body = item.Serialize(), ShouldRunAt = item.ExecuteAt}, false);
+            using (var _db = DbFactory())
+            {
+                _db.Insert(TableName, new {Id = item.Id, Body = item.Serialize(), QueuedAt=DateTime.UtcNow, ShouldRunAt = item.ExecuteAt}, false);
+            }
         }
 
         public void MarkItemAsExecuted(Guid id)
         {
-            _db.Update(TableName, new {Id = id, CompletedAt = DateTime.UtcNow});
+            using (var _db = DbFactory())
+            {
+                _db.Update(TableName, new {Id = id, CompletedAt = DateTime.UtcNow});
+            }
+        }
+
+        public void MarkItemAsFailed(Guid id)
+        {
+           using (var db = DbFactory())
+           {
+               db.ExecuteCommand("update " + TableName + " set Failures=Failures+1 where Id=@0", id);
+           }
         }
 
 
@@ -54,9 +88,18 @@ namespace SqlFu.Caveman
         /// <returns/>
         public IEnumerable<QueueItem> GetItems(DateTime date,int maxItems=50)
         {
-            var res=_db.PagedQuery<byte[]>(0,maxItems,@"select Body from " + TableName + " where CompletedAt is null and ShouldRunAt<=@0", date);
-             return res.Items.Select(d => (QueueItem) d.Deserialize());
+            using (var _db = DbFactory())
+            {
+                var res = _db.PagedQuery<byte[]>(0, maxItems, @"select Body from " + TableName + " where CompletedAt is null and ShouldRunAt<=@0 and Failures<@1", date,FailureCountToIgnore+1);
+                return res.Items.Select(d => (QueueItem)d.Deserialize());
+            }
+            
         }
+
+        /// <summary>
+        /// Items which failed more than this value will be ignored by the repository
+        /// </summary>
+        public int FailureCountToIgnore { get; set; }
 
         /// <summary>
         /// Delete all completed commands before date
@@ -64,7 +107,10 @@ namespace SqlFu.Caveman
         /// <param name="before"></param>
         public void Cleanup(DateTime before)
         {
-            _db.ExecuteCommand("delete from " + TableName + " where CompletedAt<@0", before);
+            using (var _db = DbFactory())
+            {
+                _db.ExecuteCommand("delete from " + TableName + " where CompletedAt<@0", before);
+            }
         }
     }
 }

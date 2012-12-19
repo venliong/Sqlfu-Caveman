@@ -4,6 +4,11 @@
         <name>SqlFu</name>
     </assembly>
     <members>
+        <member name="M:SqlFu.DatabaseUnitOfWork.Dispose">
+            <summary>
+            Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+            </summary>
+        </member>
         <member name="M:SqlFu.IAccessDb.GetValue``1(System.String,System.Object[])">
             <summary>
             Returns the first column of the first row in the result set.
@@ -358,14 +363,59 @@
             <param name="name"></param>
             <returns></returns>
         </member>
-        <member name="P:SqlFu.Migrations.IMigrateDatabase.CurrentVersion">
+        <member name="M:SqlFu.Migrations.IMigrationTask.Execute(SqlFu.IAccessDb)">
+            <summary>
+            Task is executed automatically in a transaction
+            </summary>
+            <param name="db"></param>
+        </member>
+        <member name="P:SqlFu.Migrations.IMigrationTask.CurrentVersion">
             <summary>
             Gets semantic version to upgrade from
             </summary>
         </member>
-        <member name="P:SqlFu.Migrations.IMigrateDatabase.NextVersion">
+        <member name="P:SqlFu.Migrations.IMigrationTask.NextVersion">
             <summary>
             Gets semantic version to upgrade to
+            </summary>
+        </member>
+        <member name="M:SqlFu.Migrations.Automatic.IAutomaticMigration.Execute(System.String[])">
+            <summary>
+            Tries to install/update all the specified schemas.
+            If no schema is specified it tries to process all schemas found
+            </summary>
+            <param name="schemas"></param>
+        </member>
+        <member name="M:SqlFu.Migrations.Automatic.IAutomaticMigration.Untrack(System.String[])">
+            <summary>
+            Removes the specified schemas names form the tracking table.
+            It doesn't remove actual tables. 
+            Next time the automatic migrations are run, these schemas will be installed again.
+            Don't use it unless you have a good reason
+            </summary>
+            <param name="schemas"></param>
+        </member>
+        <member name="M:SqlFu.Migrations.Automatic.AutomaticMigrationSetupTask.Execute(SqlFu.IAccessDb)">
+            <summary>
+            Task is executed automatically in a transaction
+            </summary>
+            <param name="db"/>
+        </member>
+        <member name="M:SqlFu.Migrations.IConfigureMigrationsRunner.PerformAutomaticMigrations(System.String[])">
+            <summary>
+            Tries to install/update all the specified schemas.
+            If no schema is specified it tries to process all schemas found
+            </summary>
+            <param name="schemas"></param>
+        </member>
+        <member name="P:SqlFu.Migrations.IMigrateSchema.Runner">
+            <summary>
+            Gets or sets the runner used to execute tasks
+            </summary>
+        </member>
+        <member name="P:SqlFu.Migrations.SchemaMigrationExecutor.Runner">
+            <summary>
+            Gets or sets the runner used to execute tasks
             </summary>
         </member>
         <member name="M:SqlFu.Migrations.MigrationAttribute.#ctor(System.String)">
@@ -373,6 +423,16 @@
             Installs schema for the specified version
             </summary>
             <param name="currentVersion"></param>
+        </member>
+        <member name="P:SqlFu.Migrations.MigrationAttribute.SchemaName">
+            <summary>
+            Optional schema name
+            </summary>
+        </member>
+        <member name="P:SqlFu.Migrations.MigrationAttribute.Priority">
+            <summary>
+            Executed from highest to lowest
+            </summary>
         </member>
         <member name="P:SqlFu.IPagedSqlStatement.ExecutedSql">
             <summary>

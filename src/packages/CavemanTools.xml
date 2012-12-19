@@ -59,6 +59,20 @@
             <param name="t"></param>
             <returns></returns>
         </member>
+        <member name="M:CavemanTools.Infrastructure.IResolveDependencies.ResolveOptional(System.Type)">
+            <summary>
+            If type is not registered return null
+            </summary>
+            <param name="type"></param>
+            <returns></returns>
+        </member>
+        <member name="M:CavemanTools.Infrastructure.DependencyContainerWrapper.ResolveOptional(System.Type)">
+            <summary>
+            If type is not registered return null
+            </summary>
+            <param name="type"></param>
+            <returns></returns>
+        </member>
         <member name="M:CavemanTools.Infrastructure.DependencyContainerWrapper.Dispose">
             <summary>
             Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
@@ -84,6 +98,17 @@
             <param name="command"></param>
             <param name="when">UTC date</param>
         </member>
+        <member name="P:CavemanTools.Infrastructure.CommandsQueue.OnUnhandledException">
+            <summary>
+            By default it does nothing. Exceptions are always logged
+            </summary>
+        </member>
+        <member name="P:CavemanTools.Infrastructure.CommandsQueue.RetriesOnFailure">
+            <summary>
+            How many times to retry a command if it fails
+            Default is 3
+            </summary>
+        </member>
         <member name="P:CavemanTools.Infrastructure.CommandsQueue.PollingInterval">
             <summary>
             Time period to check for new items
@@ -96,6 +121,11 @@
             <param name="date"></param>
             <param name="maxItems"></param>
             <returns></returns>
+        </member>
+        <member name="P:CavemanTools.Infrastructure.ISaveQueueState.FailureCountToIgnore">
+            <summary>
+            Items which failed more than this value will be ignored by the repository
+            </summary>
         </member>
         <member name="M:CavemanTools.Infrastructure.MessagesBus.ICommand.Enrol(CavemanTools.Infrastructure.MessagesBus.IEvent)">
             <summary>
@@ -118,6 +148,28 @@
             </summary>
             <typeparam name="T"></typeparam>
             <param name="constructor"></param>
+            <returns></returns>
+        </member>
+        <member name="M:CavemanTools.Infrastructure.MessagesBus.IConfigureMessageBusFactory.SetGlobalErrorHandler(System.Action{System.Exception})">
+            <summary>
+            All unhandled exceptions go there. If nothing is provided, exceptions are only logged.
+            Exceptions are always logged regardless if you set a handler or not.
+            </summary>
+            <param name="errorHandler"></param>
+            <returns></returns>
+        </member>
+        <member name="M:CavemanTools.Infrastructure.MessagesBus.IConfigureMessageBusFactory.ScanForHandlers(System.Reflection.Assembly[])">
+            <summary>
+            Autoregister message handlers from the specified assemblies
+            </summary>
+            <param name="assemblies"></param>
+            <returns></returns>
+        </member>
+        <member name="M:CavemanTools.Infrastructure.MessagesBus.IConfigureMessageBusFactory.UseHandlersFrom(System.Type[])">
+            <summary>
+            Specified tyeps contain message handlers
+            </summary>
+            <param name="types"></param>
             <returns></returns>
         </member>
         <member name="M:CavemanTools.Infrastructure.MessagesBus.IConfigureMessageBus.RegisterHandlerType(System.Type,System.Type)">
@@ -155,10 +207,11 @@
             <exception cref="T:CavemanTools.Infrastructure.MessagesBus.DuplicateMessageException"></exception>
             <param name="cmd"></param>
         </member>
-        <member name="M:CavemanTools.Infrastructure.MessagesBus.IStoreMessageBusState.GetUncompletedMessages">
+        <member name="M:CavemanTools.Infrastructure.MessagesBus.IStoreMessageBusState.GetUncompletedMessages(System.Int32)">
             <summary>
             Gets all the un completed messages, usually as aresult of server crash
             </summary>
+            <param name="ignoreFailedCount">Ignore failed messages with a failure count greater than value</param>
             <returns></returns>
         </member>
         <member name="M:CavemanTools.Infrastructure.MessagesBus.IStoreMessageBusState.Cleanup">
@@ -214,6 +267,14 @@
             <param name="config"></param>
             <returns></returns>
         </member>
+        <member name="M:CavemanTools.Infrastructure.MessagesBus.MessageBusFactoryExtensions.UseResolverToPopulateDependencies(CavemanTools.Infrastructure.MessagesBus.IConfigureMessageBusFactory,CavemanTools.Infrastructure.IContainerScope)">
+            <summary>
+            Implementations of <see cref="T:CavemanTools.Logging.ILogWriter"/> and <see cref="T:CavemanTools.Infrastructure.MessagesBus.IStoreMessageBusState"/> must be registered in the container
+            </summary>
+            <param name="config"></param>
+            <param name="resolver"></param>
+            <returns></returns>
+        </member>
         <member name="M:CavemanTools.Infrastructure.MessagesBus.LocalMessageBus.PublishAsync(CavemanTools.Infrastructure.MessagesBus.IEvent[])">
             <summary>
             Publishes asynchronously the events
@@ -226,6 +287,11 @@
             </summary>
             <param name="t"></param>
             <returns></returns>
+        </member>
+        <member name="M:CavemanTools.Infrastructure.MessagesBus.Internals.SubscriptionManager.Dispose">
+            <summary>
+            Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+            </summary>
         </member>
         <member name="M:CavemanTools.Infrastructure.MessagesBus.Saga.IFindSaga`1.Using`1.FindSaga(`1)">
             <summary>
@@ -846,12 +912,13 @@
             <param name="source">Function to execute</param>
             <returns></returns>
         </member>
-        <member name="M:System.Reflection.AssemblyExtensions.GetTypesImplementing``1(System.Reflection.Assembly)">
+        <member name="M:System.Reflection.AssemblyExtensions.GetTypesImplementing``1(System.Reflection.Assembly,System.Boolean)">
             <summary>
             Returns public types implementing T
             </summary>
             <typeparam name="T"></typeparam>
             <param name="asm"></param>
+            <param name="instantiable">True to return only types that can be instantiated i.e no interfaces and no abstract classes</param>
             <returns></returns>
         </member>
         <member name="M:System.Reflection.AttributeUtils.GetCustomAttributes``1(System.Reflection.ICustomAttributeProvider)">

@@ -28,6 +28,7 @@ namespace Tests
         public MessageBusSqlStorageTests()
         {
            _store = new MessageBusSqlStorage(Setup.GetDb());
+            _store.EnsureStorage();
         }
 
         [Fact]
@@ -64,7 +65,7 @@ namespace Tests
             };
             
             _store.StoreMessageInProgress(cmd);
-            _store.StoreMessageCompleted(cmd.Id);
+            _store.MarkMessageCompleted(cmd.Id);
 
             cmd = new MyCommand()
             {
@@ -75,11 +76,20 @@ namespace Tests
             };
 
             _store.StoreMessageInProgress(cmd);
-            _store.StoreMessageCompleted(cmd.Id);
-            Assert.DoesNotThrow(() => _store.StoreMessageCompleted(cmd.Id));
+            _store.MarkMessageCompleted(cmd.Id);
+            Assert.DoesNotThrow(() => _store.MarkMessageCompleted(cmd.Id));
             
             var all = _store.GetUncompletedMessages().ToArray();
             Assert.Equal(0, all.Count());
+        }
+
+        [Fact]
+        public void mark_as_failed()
+        {
+            var cmd = new MyCommand();
+            _store.StoreMessageInProgress(cmd);
+            Assert.DoesNotThrow(()=>_store.MarkMessageFailed(cmd.Id));
+            Assert.Empty(_store.GetUncompletedMessages(0));
         }
 
         [Fact]

@@ -1,4 +1,5 @@
-﻿using CavemanTools.Logging;
+﻿using System;
+using CavemanTools.Logging;
 using SqlFu;
 
 namespace Tests
@@ -12,9 +13,19 @@ namespace Tests
             LogHelper.Register(new ConsoleLogger(), "dev");
         }
 
-        public static DbAccess GetDb()
+        public static Func<IAccessDb> GetDb()
         {
-            return new DbAccess(Connex, DbEngine.SqlServer);
+            return () =>
+                {
+                    LogHelper.DefaultLogger.Debug("new DbAccess instance");
+                    var db = new DbAccess(Connex, DbEngine.SqlServer);
+                    db.OnCommand = cmd => LogHelper.DefaultLogger.Debug(cmd.FormatCommand());
+                    db.OnOpenConnection = cmd => LogHelper.DefaultLogger.Debug("Open");
+                    db.OnCloseConnection = cmd => LogHelper.DefaultLogger.Debug("Close");
+                    db.OnException =
+                        (s, ex) => LogHelper.DefaultLogger.Debug("Exception: {0} \n\r {1}", s.ExecutedSql, ex.ToString());
+                    return db;
+                };
         }
     }
 }

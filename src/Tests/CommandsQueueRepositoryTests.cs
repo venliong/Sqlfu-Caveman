@@ -15,6 +15,7 @@ namespace Tests
         public CommandsQueueRepositoryTests()
         {
             _repo = new CommandsQueueRepository(Setup.GetDb());
+            _repo.EnsureStorage();
         }
 
         [Fact]
@@ -51,6 +52,19 @@ namespace Tests
             item.ExecuteAt = DateTime.UtcNow.AddDays(1);
             _repo.Save(item);
             Assert.Empty(_repo.GetItems(DateTime.UtcNow));
+        }
+
+        [Fact]
+        public void mark_as_fail_ignore_after_one_fail()
+        {
+            var item = CreateQueueItem();
+            _repo.Save(item);
+            _repo.FailureCountToIgnore = 1;
+            _repo.MarkItemAsFailed(item.Id);
+            Assert.Equal(1,_repo.GetItems(DateTime.UtcNow).Count());
+            _repo.MarkItemAsFailed(item.Id);
+            Assert.Empty(_repo.GetItems(DateTime.UtcNow));
+            
         }
 
         protected void Write(string format, params object[] param)
